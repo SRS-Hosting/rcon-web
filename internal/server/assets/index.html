@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>RCON Console - {{.Target}}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #262b36;
+    --text: #d7dae0;
+    --dim: #8b93a1;
+    --accent: #7fb2ff;
+    --ok: #6ee7a8;
+    --err: #ff8c8c;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 var(--mono);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: baseline;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .target { color: var(--accent); }
+
+  #status {
+    margin-left: auto;
+    color: var(--dim);
+    font-size: 12px;
+  }
+  #status[data-state="running"] { color: var(--accent); }
+  #status[data-state="ok"] { color: var(--ok); }
+  #status[data-state="error"] { color: var(--err); }
+
+  #log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    padding: 14px;
+    margin: 0;
+    white-space: pre-wrap;
+    font: inherit;
+  }
+
+  #log:empty::after {
+    content: "Type a command below to get started.";
+    color: var(--dim);
+  }
+
+  .entry { margin-bottom: 12px; }
+  .entry:last-child { margin-bottom: 0; }
+  .sent { color: var(--accent); }
+  .empty { color: var(--dim); }
+  .error { color: var(--err); }
+
+  form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .prompt { color: var(--accent); }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+  }
+  input:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  input:disabled { color: var(--dim); }
+
+  button {
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { color: var(--dim); cursor: default; }
+
+  .hint {
+    padding: 0 14px 10px;
+    background: var(--panel);
+    color: var(--dim);
+    font-size: 11px;
+  }
+
+  @media (max-width: 560px) {
+    #status { margin-left: 0; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RCON Console</h1>
+  <span class="target">{{.Target}}</span>
+  <span id="status" data-state="idle">idle</span>
+</header>
+
+<div id="log" role="log" aria-live="polite" aria-label="Command output"></div>
+
+<form id="form" autocomplete="off">
+  <span class="prompt" aria-hidden="true">&gt;</span>
+  <label for="command" hidden>Command</label>
+  <input id="command" name="command" maxlength="1000" placeholder="command" autofocus
+         autocapitalize="off" autocorrect="off" spellcheck="false">
+  <button type="submit" id="send">Send</button>
+  <button type="button" id="clear">Clear</button>
+</form>
+<p class="hint">Enter to send | Up/Down for history | commands time out after {{.TimeoutSeconds}}s</p>
+
+<script>
+(function () {
+  "use strict";
+
+  var TIMEOUT_MS = {{.TimeoutSeconds}} * 1000;
+  // Give the server its full deadline plus slack for the round trip before the
+  // browser gives up on its own; the server is the authority on timing out.
+  var ABORT_MS = TIMEOUT_MS + 3000;
+
+  var form = document.getElementById("form");
+  var input = document.getElementById("command");
+  var send = document.getElementById("send");
+  var log = document.getElementById("log");
+  var status = document.getElementById("status");
+
+  var history = [];
+  var historyIndex = 0; // == history.length means "not browsing history"
+
+  function setStatus(state, text) {
+    status.dataset.state = state;
+    status.textContent = text;
+  }
+
+  // Every value from the server lands via textContent, so a response can never
+  // be interpreted as markup.
+  function append(command, body, kind) {
+    var entry = document.createElement("div");
+    entry.className = "entry";
+
+    var sent = document.createElement("div");
+    sent.className = "sent";
+    sent.textContent = "> " + command;
+    entry.appendChild(sent);
+
+    var out = document.createElement("div");
+    out.className = kind;
+    out.textContent = body;
+    entry.appendChild(out);
+
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function setBusy(busy) {
+    input.disabled = busy;
+    send.disabled = busy;
+    if (!busy) { input.focus(); }
+  }
+
+  function run(command) {
+    setBusy(true);
+    setStatus("running", "running...");
+
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, ABORT_MS);
+
+    fetch("api/command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command: command }),
+      signal: controller.signal
+    }).then(function (response) {
+      return response.json().then(function (data) {
+        return { ok: response.ok, status: response.status, data: data };
+      }, function () {
+        return { ok: false, status: response.status, data: { error: "server returned an unreadable response (HTTP " + response.status + ")" } };
+      });
+    }).then(function (result) {
+      if (!result.ok) {
+        append(command, result.data.error || ("request failed with HTTP " + result.status), "error");
+        setStatus("error", "error");
+        return;
+      }
+      var output = result.data.output || "";
+      if (output.replace(/\s+/g, "") === "") {
+        append(command, "(no output)", "empty");
+      } else {
+        append(command, output, "output");
+      }
+      setStatus("ok", "ok");
+    }).catch(function (err) {
+      var message = err && err.name === "AbortError"
+        ? "no response from the server after " + Math.round(ABORT_MS / 1000) + "s"
+        : "could not reach the web service: " + (err && err.message ? err.message : "network error");
+      append(command, message, "error");
+      setStatus("error", "error");
+    }).finally(function () {
+      // finally, not then: a trailing .then is skipped on rejection, so a throw
+      // anywhere above would strand the input disabled with no way back but a
+      // page reload.
+      clearTimeout(timer);
+      setBusy(false);
+    });
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var command = input.value.trim();
+    if (command === "" || input.disabled) { return; }
+
+    if (history[history.length - 1] !== command) { history.push(command); }
+    historyIndex = history.length;
+    input.value = "";
+    run(command);
+  });
+
+  input.addEventListener("keydown", function (event) {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") { return; }
+    if (history.length === 0) { return; }
+    event.preventDefault();
+
+    if (event.key === "ArrowUp") {
+      historyIndex = Math.max(0, historyIndex - 1);
+      input.value = history[historyIndex];
+    } else {
+      historyIndex = Math.min(history.length, historyIndex + 1);
+      input.value = historyIndex === history.length ? "" : history[historyIndex];
+    }
+    // Put the caret at the end rather than wherever it was.
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  document.getElementById("clear").addEventListener("click", function () {
+    log.replaceChildren();
+    setStatus("idle", "idle");
+    input.focus();
+  });
+})();
+</script>
+
+</body>
+</html>
