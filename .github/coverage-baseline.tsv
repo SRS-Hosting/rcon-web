@@ -1,5 +1,5 @@
 internal/cmd/root.go	29	0
 internal/config/config.go	21	21
-internal/rcon/client.go	43	38
+internal/rcon/client.go	43	39
 internal/server/server.go	116	102
 main.go	5	0
