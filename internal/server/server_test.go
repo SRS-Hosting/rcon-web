@@ -14,35 +14,29 @@ import (
 	"time"
 
 	"github.com/USA-RedDragon/rcon-web/internal/config"
-	"github.com/gorcon/rcon"
-	"github.com/gorcon/rcon/rcontest"
+	"github.com/USA-RedDragon/rcon/rcontest"
 )
 
 func newTestRCON(t *testing.T) *rcontest.Server {
 	t.Helper()
-	srv := rcontest.NewServer(
-		rcontest.SetSettings(rcontest.Settings{Password: "pw"}),
-		rcontest.SetCommandHandler(func(c *rcontest.Context) {
-			reply := func(body string) {
-				if _, err := rcon.NewPacket(rcon.SERVERDATA_RESPONSE_VALUE, c.Request().ID, body).WriteTo(c.Conn()); err != nil {
-					t.Errorf("fake server write: %v", err)
-				}
-			}
-			switch c.Request().Body() {
-			case "status":
-				reply("hostname: test\nplayers: 0")
-			case "silent":
-				reply("")
-			case "slow":
-				time.Sleep(3 * time.Second)
-				reply("too late")
-			case "xss":
-				reply("<script>alert(1)</script>")
-			default:
-				reply("Unknown command")
-			}
-		}),
-	)
+	srv, err := rcontest.New(rcontest.Respond("pw", 0, func(command string) string {
+		switch command {
+		case "status":
+			return "hostname: test\nplayers: 0"
+		case "silent":
+			return ""
+		case "slow":
+			time.Sleep(3 * time.Second)
+			return "too late"
+		case "xss":
+			return "<script>alert(1)</script>"
+		default:
+			return "Unknown command"
+		}
+	}))
+	if err != nil {
+		t.Fatalf("start fake rcon server: %v", err)
+	}
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -672,27 +666,25 @@ func TestConcurrencyCap(t *testing.T) {
 	var mu sync.Mutex
 	live, peak := 0, 0
 
-	srv := rcontest.NewServer(
-		rcontest.SetSettings(rcontest.Settings{Password: "pw"}),
-		rcontest.SetCommandHandler(func(c *rcontest.Context) {
-			mu.Lock()
-			live++
-			if live > peak {
-				peak = live
-			}
-			mu.Unlock()
+	srv, err := rcontest.New(rcontest.Respond("pw", 0, func(string) string {
+		mu.Lock()
+		live++
+		if live > peak {
+			peak = live
+		}
+		mu.Unlock()
 
-			time.Sleep(300 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
-			mu.Lock()
-			live--
-			mu.Unlock()
+		mu.Lock()
+		live--
+		mu.Unlock()
 
-			if _, err := rcon.NewPacket(rcon.SERVERDATA_RESPONSE_VALUE, c.Request().ID, "ok").WriteTo(c.Conn()); err != nil {
-				t.Errorf("fake server write: %v", err)
-			}
-		}),
-	)
+		return "ok"
+	}))
+	if err != nil {
+		t.Fatalf("start fake rcon server: %v", err)
+	}
 	t.Cleanup(srv.Close)
 
 	host, port := splitAddr(t, srv.Addr())

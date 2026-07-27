@@ -16,9 +16,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/USA-RedDragon/rcon"
 	"github.com/USA-RedDragon/rcon-web/internal/config"
-	"github.com/USA-RedDragon/rcon-web/internal/rcon"
-	gorcon "github.com/gorcon/rcon"
 )
 
 //go:embed assets/index.html
@@ -58,7 +57,9 @@ type Server struct {
 // New builds a Server for cfg. It fails if the embedded page cannot be
 // rendered, which would mean a broken build rather than a runtime condition.
 func New(cfg *config.Config) (*Server, error) {
-	client := rcon.New(cfg.RCON.Addr(), cfg.RCON.Password, cfg.RCON.Timeout(), cfg.RCON.MaxConcurrent)
+	client := rcon.New(cfg.RCON.Addr(), cfg.RCON.Password,
+		rcon.WithTimeout(cfg.RCON.Timeout()),
+		rcon.WithMaxConcurrent(cfg.RCON.MaxConcurrent))
 
 	page, err := renderPage(client)
 	if err != nil {
@@ -282,16 +283,6 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, commandResponse{Error: "command must not be empty"})
 		return
 	}
-	// Checked here rather than left to gorcon, which only rejects an over-long
-	// command after it has already dialed and authenticated. That both wasted a
-	// round trip against the game server and misreported the problem as a
-	// connection error whenever the server happened to be down.
-	if len(req.Command) > gorcon.MaxCommandLen {
-		s.writeJSON(w, http.StatusBadRequest,
-			commandResponse{Error: fmt.Sprintf("command must be at most %d bytes", gorcon.MaxCommandLen)})
-		return
-	}
-
 	output, err := s.rcon.Execute(r.Context(), req.Command)
 	if err != nil {
 		status, msg := classify(err)
@@ -316,12 +307,14 @@ func classify(err error) (int, string) {
 		return http.StatusServiceUnavailable, "too many commands in flight, try again in a moment"
 	case errors.As(err, &timeout):
 		return http.StatusGatewayTimeout, timeout.Error()
-	case errors.Is(err, gorcon.ErrAuthFailed), errors.Is(err, gorcon.ErrInvalidAuthResponse):
+	case errors.Is(err, rcon.ErrAuthFailed):
 		return http.StatusBadGateway, "rcon: authentication failed - check the configured password"
-	case errors.Is(err, gorcon.ErrAuthNotRCON):
+	case errors.Is(err, rcon.ErrNotRCON):
 		return http.StatusBadGateway, "rcon: the configured address is not an RCON server"
-	case errors.Is(err, gorcon.ErrCommandTooLong):
-		return http.StatusBadRequest, fmt.Sprintf("command must be at most %d bytes", gorcon.MaxCommandLen)
+	case errors.Is(err, rcon.ErrCommandTooLong):
+		// The client rejects this before dialling, so it is a 400 about the
+		// request rather than a 502 about the upstream.
+		return http.StatusBadRequest, fmt.Sprintf("command must be at most %d bytes", rcon.MaxCommandLen)
 	default:
 		return http.StatusBadGateway, err.Error()
 	}
