@@ -7,15 +7,15 @@ release:
   extra_files:
     - glob: ./LICENSE
   github:
-    owner: USA-RedDragon
+    owner: SRS-Hosting
     name: rcon-web
 
 dockers:
   - image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:latest-amd64"
     use: buildx
     goarch: amd64
     build_flag_templates:
@@ -25,14 +25,14 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/USA-RedDragon/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/USA-RedDragon/{{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
       - "--platform=linux/amd64"
   - image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-armv7"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-armv7"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-armv7"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-armv7"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv7"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv7"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv7"
+      - "ghcr.io/srs-hosting/rcon-web:latest-armv7"
     use: buildx
     goarch: arm
     goarm: "7"
@@ -43,14 +43,14 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/USA-RedDragon/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/USA-RedDragon/{{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
       - "--platform=linux/arm/v7"
   - image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:latest-armv6"
     use: buildx
     goarch: arm
     goarm: "6"
@@ -61,14 +61,14 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/USA-RedDragon/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/USA-RedDragon/{{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
       - "--platform=linux/arm/v6"
   - image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:latest-arm64"
     use: buildx
     goarch: arm64
     build_flag_templates:
@@ -78,35 +78,35 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/USA-RedDragon/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/USA-RedDragon/{{ .ProjectName }}
+      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
+      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
       - "--platform=linux/arm64"
 
 docker_manifests:
-  - name_template: "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}"
+  - name_template: "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}"
     image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:{{ .Tag }}-armv7"
-  - name_template: "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv7"
+  - name_template: "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}"
     image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}-armv7"
-  - name_template: "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv7"
+  - name_template: "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}"
     image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:v{{ .Major }}.{{ .Minor }}-armv7"
-  - name_template: "ghcr.io/usa-reddragon/rcon-web:latest"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv7"
+  - name_template: "ghcr.io/srs-hosting/rcon-web:latest"
     image_templates:
-      - "ghcr.io/usa-reddragon/rcon-web:latest-amd64"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-arm64"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-armv6"
-      - "ghcr.io/usa-reddragon/rcon-web:latest-armv7"
+      - "ghcr.io/srs-hosting/rcon-web:latest-amd64"
+      - "ghcr.io/srs-hosting/rcon-web:latest-arm64"
+      - "ghcr.io/srs-hosting/rcon-web:latest-armv6"
+      - "ghcr.io/srs-hosting/rcon-web:latest-armv7"
 
 builds:
   - main: .

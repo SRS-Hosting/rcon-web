@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 
+	"github.com/SRS-Hosting/rcon-web/internal/cmd"
+	"github.com/SRS-Hosting/rcon-web/internal/config"
 	"github.com/USA-RedDragon/configulator"
-	"github.com/USA-RedDragon/rcon-web/internal/cmd"
-	"github.com/USA-RedDragon/rcon-web/internal/config"
 )
 
 // https://goreleaser.com/cookbooks/using-main.version/

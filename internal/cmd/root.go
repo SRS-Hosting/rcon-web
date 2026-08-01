@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/SRS-Hosting/rcon-web/internal/config"
+	"github.com/SRS-Hosting/rcon-web/internal/server"
 	"github.com/USA-RedDragon/configulator"
-	"github.com/USA-RedDragon/rcon-web/internal/config"
-	"github.com/USA-RedDragon/rcon-web/internal/server"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 )

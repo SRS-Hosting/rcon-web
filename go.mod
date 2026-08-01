@@ -1,10 +1,10 @@
-module github.com/USA-RedDragon/rcon-web
+module github.com/SRS-Hosting/rcon-web
 
 go 1.26.5
 
 require (
+	github.com/SRS-Hosting/rcon v0.0.4
 	github.com/USA-RedDragon/configulator v0.0.5
-	github.com/USA-RedDragon/rcon v0.0.3
 	github.com/lmittmann/tint v1.2.0
 	github.com/spf13/cobra v1.10.2
 )

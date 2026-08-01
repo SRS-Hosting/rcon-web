@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/USA-RedDragon/rcon-web/internal/config"
-	"github.com/USA-RedDragon/rcon/rcontest"
+	"github.com/SRS-Hosting/rcon-web/internal/config"
+	"github.com/SRS-Hosting/rcon/rcontest"
 )
 
 func newTestRCON(t *testing.T) *rcontest.Server {

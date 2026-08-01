@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/USA-RedDragon/rcon"
-	"github.com/USA-RedDragon/rcon-web/internal/config"
+	"github.com/SRS-Hosting/rcon"
+	"github.com/SRS-Hosting/rcon-web/internal/config"
 )
 
 //go:embed assets/index.html
