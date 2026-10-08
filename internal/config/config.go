@@ -1,5 +1,7 @@
 package config
 
+//go:generate go tool configulator -type Config
+
 import (
 	"errors"
 	"fmt"
@@ -56,7 +58,7 @@ func (h HTTP) Addr() string {
 type RCON struct {
 	Host     string `name:"host" default:"127.0.0.1" description:"hostname or IP of the Source RCON server"`
 	Port     int    `name:"port" default:"27015" description:"TCP port of the Source RCON server"`
-	Password string `name:"password" description:"RCON password (required)"`
+	Password string `name:"password" secret:"true" description:"RCON password (required)"`
 	// Expressed in seconds rather than as a time.Duration because configulator
 	// parses integer fields with strconv, so a "5s" default would not load.
 	TimeoutSeconds int `name:"timeoutSeconds" default:"5" description:"deadline in seconds covering a whole RCON exchange: connect, authenticate, command, response"`

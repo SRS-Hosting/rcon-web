@@ -10,7 +10,7 @@ import (
 
 	"github.com/SRS-Hosting/rcon-web/internal/config"
 	"github.com/SRS-Hosting/rcon-web/internal/server"
-	"github.com/USA-RedDragon/configulator"
+	"github.com/USA-RedDragon/configulator/v2"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 )
@@ -42,15 +42,6 @@ func New(version string, commit string) *cobra.Command {
 
 func run(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
-
-	// configulator skips a config file it cannot find, which is right for the
-	// default path but wrong for one the operator named explicitly: a typo'd
-	// --config would otherwise start silently on defaults, looking like it worked.
-	if flag := cmd.Flags().Lookup(configulator.ConfigFileKey); flag != nil && flag.Changed {
-		if _, err := os.Stat(flag.Value.String()); err != nil {
-			return fmt.Errorf("config file %s: %w", flag.Value.String(), err)
-		}
-	}
 
 	c, err := configulator.FromContext[config.Config](ctx)
 	if err != nil {
