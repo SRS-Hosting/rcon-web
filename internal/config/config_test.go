@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const (
+	keyHTTPPort    = "http.port"
+	keyRCONPort    = "rcon.port"
+	keyRCONTimeout = "rcon.timeoutSeconds"
+)
+
 func valid() Config {
 	return Config{
 		LogLevel: LogLevelInfo,
@@ -29,14 +35,14 @@ func TestValidateRangeChecks(t *testing.T) {
 		mutef func(*Config)
 		want  string
 	}{
-		{"port too high", func(c *Config) { c.HTTP.Port = 70000 }, "http.port"},
-		{"port negative", func(c *Config) { c.HTTP.Port = -1 }, "http.port"},
-		{"port zero", func(c *Config) { c.HTTP.Port = 0 }, "http.port"},
-		{"rcon port too high", func(c *Config) { c.RCON.Port = 65536 }, "rcon.port"},
-		{"rcon port negative", func(c *Config) { c.RCON.Port = -8080 }, "rcon.port"},
-		{"timeout zero", func(c *Config) { c.RCON.TimeoutSeconds = 0 }, "rcon.timeoutSeconds"},
-		{"timeout negative", func(c *Config) { c.RCON.TimeoutSeconds = -1 }, "rcon.timeoutSeconds"},
-		{"timeout too high", func(c *Config) { c.RCON.TimeoutSeconds = 65537 }, "rcon.timeoutSeconds"},
+		{"port too high", func(c *Config) { c.HTTP.Port = 70000 }, keyHTTPPort},
+		{"port negative", func(c *Config) { c.HTTP.Port = -1 }, keyHTTPPort},
+		{"port zero", func(c *Config) { c.HTTP.Port = 0 }, keyHTTPPort},
+		{"rcon port too high", func(c *Config) { c.RCON.Port = 65536 }, keyRCONPort},
+		{"rcon port negative", func(c *Config) { c.RCON.Port = -8080 }, keyRCONPort},
+		{"timeout zero", func(c *Config) { c.RCON.TimeoutSeconds = 0 }, keyRCONTimeout},
+		{"timeout negative", func(c *Config) { c.RCON.TimeoutSeconds = -1 }, keyRCONTimeout},
+		{"timeout too high", func(c *Config) { c.RCON.TimeoutSeconds = 65537 }, keyRCONTimeout},
 		{"no password", func(c *Config) { c.RCON.Password = "" }, "rcon.password"},
 		{"no host", func(c *Config) { c.RCON.Host = "" }, "rcon.host"},
 		{"bad log level", func(c *Config) { c.LogLevel = "silly" }, "logLevel"},
@@ -65,7 +71,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	if err == nil {
 		t.Fatal("empty config was accepted")
 	}
-	for _, want := range []string{"logLevel", "http.port", "rcon.host", "rcon.port", "rcon.password", "rcon.timeoutSeconds"} {
+	for _, want := range []string{"logLevel", keyHTTPPort, "rcon.host", keyRCONPort, "rcon.password", keyRCONTimeout} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not mention %q:\n%v", want, err)
 		}

@@ -17,6 +17,8 @@ import (
 	"github.com/SRS-Hosting/rcon/rcontest"
 )
 
+const loopback = "127.0.0.1"
+
 func newTestRCON(t *testing.T) *rcontest.Server {
 	t.Helper()
 	srv, err := rcontest.New(rcontest.Respond("pw", 0, func(command string) string {
@@ -59,7 +61,7 @@ func newTestServer(t *testing.T, rconAddr, password string, timeoutSeconds int) 
 	host, port := splitAddr(t, rconAddr)
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "127.0.0.1", Port: 8080},
+		HTTP:     config.HTTP{Bind: loopback, Port: 8080},
 		RCON:     config.RCON{Host: host, Port: port, Password: password, TimeoutSeconds: timeoutSeconds, MaxConcurrent: 4},
 	})
 	if err != nil {
@@ -89,7 +91,7 @@ func postJSON(ctx context.Context, url, body string) (*http.Response, error) {
 
 func post(t *testing.T, s *Server, body string) (int, commandResponse) {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/api/command", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/command", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.http.Handler.ServeHTTP(rec, req)
@@ -195,7 +197,7 @@ func TestRoutes(t *testing.T) {
 	s := newTestServer(t, rs.Addr(), "pw", 5)
 
 	rec := httptest.NewRecorder()
-	s.http.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	s.http.Handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 	body := rec.Body.String()
 	if rec.Code != http.StatusOK || !strings.Contains(body, "RCON Console") {
 		t.Fatalf("index: %d", rec.Code)
@@ -223,7 +225,7 @@ func TestRoutes(t *testing.T) {
 		{http.MethodPost, "/"},
 	} {
 		rec := httptest.NewRecorder()
-		s.http.Handler.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
+		s.http.Handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil))
 		if rec.Code == http.StatusOK {
 			t.Errorf("%s %s unexpectedly returned 200", tc.method, tc.path)
 		}
@@ -308,7 +310,7 @@ func TestGracefulShutdown(t *testing.T) {
 	host, port := splitAddr(t, rs.Addr())
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "127.0.0.1", Port: 18098},
+		HTTP:     config.HTTP{Bind: loopback, Port: 18098},
 		RCON:     config.RCON{Host: host, Port: port, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 4},
 	})
 	if err != nil {
@@ -346,7 +348,7 @@ func TestInflightRequestSurvivesShutdown(t *testing.T) {
 	host, port := splitAddr(t, rs.Addr())
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "127.0.0.1", Port: 18097},
+		HTTP:     config.HTTP{Bind: loopback, Port: 18097},
 		RCON:     config.RCON{Host: host, Port: port, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 4},
 	})
 	if err != nil {
@@ -456,7 +458,7 @@ func TestListenBothFamiliesUnavailable(t *testing.T) {
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
 		HTTP:     config.HTTP{Bind: "", Port: 18095},
-		RCON:     config.RCON{Host: "127.0.0.1", Port: 27015, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 4},
+		RCON:     config.RCON{Host: loopback, Port: 27015, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 4},
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -476,8 +478,8 @@ func TestPortInUse(t *testing.T) {
 
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "127.0.0.1", Port: port},
-		RCON:     config.RCON{Host: "127.0.0.1", Port: 27015, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 4},
+		HTTP:     config.HTTP{Bind: loopback, Port: port},
+		RCON:     config.RCON{Host: loopback, Port: 27015, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 4},
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -511,7 +513,7 @@ func TestRejectsNonJSONContentType(t *testing.T) {
 		"multipart/form-data; boundary=x",
 		"",
 	} {
-		req := httptest.NewRequest(http.MethodPost, "/api/command", strings.NewReader(`{"command":"status"}`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/command", strings.NewReader(`{"command":"status"}`))
 		if ct != "" {
 			req.Header.Set("Content-Type", ct)
 		}
@@ -525,7 +527,7 @@ func TestRejectsNonJSONContentType(t *testing.T) {
 	}
 
 	// A charset parameter is legitimate and must still be accepted.
-	req := httptest.NewRequest(http.MethodPost, "/api/command", strings.NewReader(`{"command":"status"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/command", strings.NewReader(`{"command":"status"}`))
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	rec := httptest.NewRecorder()
 	s.http.Handler.ServeHTTP(rec, req)
@@ -539,7 +541,7 @@ func TestSecurityHeaders(t *testing.T) {
 	s := newTestServer(t, rs.Addr(), "pw", 5)
 
 	rec := httptest.NewRecorder()
-	s.http.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	s.http.Handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 	for header, want := range map[string]string{
 		"X-Frame-Options":        "DENY",
@@ -690,7 +692,7 @@ func TestConcurrencyCap(t *testing.T) {
 	host, port := splitAddr(t, srv.Addr())
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "127.0.0.1", Port: 8080},
+		HTTP:     config.HTTP{Bind: loopback, Port: 8080},
 		RCON:     config.RCON{Host: host, Port: port, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: limit},
 	})
 	if err != nil {
@@ -746,7 +748,7 @@ func TestBusySlotsAreReleased(t *testing.T) {
 	host, port := splitAddr(t, rs.Addr())
 	s, err := New(&config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "127.0.0.1", Port: 8080},
+		HTTP:     config.HTTP{Bind: loopback, Port: 8080},
 		RCON:     config.RCON{Host: host, Port: port, Password: "pw", TimeoutSeconds: 5, MaxConcurrent: 1},
 	})
 	if err != nil {
