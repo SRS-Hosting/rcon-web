@@ -124,6 +124,6 @@ jobs:
 
       - name: Report coverage
         if: always()
-        uses: USA-RedDragon/reusable-actions/coverage@7b48c49fab12ac02ffeed216028183415bf5aebe # v2.0.24
+        uses: USA-RedDragon/reusable-actions/coverage@764c7aee28d4145c8b84d8c550727a6924a96c7e # v2.0.25
         with:
           file: coverage.out
