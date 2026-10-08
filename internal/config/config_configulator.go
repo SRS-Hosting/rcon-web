@@ -5,32 +5,38 @@
 package config
 
 import (
-	jsontext "encoding/json/jsontext"
-	v2 "encoding/json/v2"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
+	"errors"
 	"fmt"
-	configulator "github.com/USA-RedDragon/configulator/v2"
-	cpflag "github.com/USA-RedDragon/configulator/v2/flags/pflag"
-	"github.com/spf13/pflag"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/USA-RedDragon/configulator/v2"
+	cpflag "github.com/USA-RedDragon/configulator/v2/flags/pflag"
+	"github.com/USA-RedDragon/configulator/v2/impl"
+	"github.com/spf13/pflag"
 )
 
 type hTTPShadow struct {
 	Bind *string `json:"bind" toml:"bind" yaml:"bind"`
 	Port *int    `json:"port" toml:"port" yaml:"port"`
 }
+
 type rCONShadow struct {
-	Host           *string `json:"host" toml:"host" yaml:"host"`
-	Port           *int    `json:"port" toml:"port" yaml:"port"`
-	Password       *string `json:"password" toml:"password" yaml:"password"`
+	Host           *string `json:"host"           toml:"host"           yaml:"host"`
+	Port           *int    `json:"port"           toml:"port"           yaml:"port"`
+	Password       *string `json:"password"       toml:"password"       yaml:"password"`
 	TimeoutSeconds *int    `json:"timeoutSeconds" toml:"timeoutSeconds" yaml:"timeoutSeconds"`
-	MaxConcurrent  *int    `json:"maxConcurrent" toml:"maxConcurrent" yaml:"maxConcurrent"`
+	MaxConcurrent  *int    `json:"maxConcurrent"  toml:"maxConcurrent"  yaml:"maxConcurrent"`
 }
+
 type configShadow struct {
 	LogLevel *string     `json:"logLevel" toml:"logLevel" yaml:"logLevel"`
-	HTTP     *hTTPShadow `json:"http" toml:"http" yaml:"http"`
-	RCON     *rCONShadow `json:"rcon" toml:"rcon" yaml:"rcon"`
+	HTTP     *hTTPShadow `json:"http"     toml:"http"     yaml:"http"`
+	RCON     *rCONShadow `json:"rcon"     toml:"rcon"     yaml:"rcon"`
 }
 
 // ConfigSchema returns the generated schema for Config.
@@ -41,7 +47,8 @@ func ConfigSchema() *configulator.Schema[Config] {
 		DecodeFile:    configDecodeFile,
 	}
 }
-func configApplyDefaults(cfg *Config, sep string, set configulator.SetOrigin) error {
+
+func configApplyDefaults(cfg *Config, _ string, set configulator.SetOrigin) error {
 	cfg.LogLevel = LogLevel("info")
 	set("logLevel", configulator.LayerDefault, "default tag")
 	cfg.HTTP.Port = 8080
@@ -56,6 +63,7 @@ func configApplyDefaults(cfg *Config, sep string, set configulator.SetOrigin) er
 	set("rcon.maxConcurrent", configulator.LayerDefault, "default tag")
 	return nil
 }
+
 func configDecodeFile(data []byte, u configulator.Unmarshal, cfg *Config, sep string, set configulator.SetOrigin, file string) error {
 	var sh configShadow
 	if err := u(data, &sh); err != nil {
@@ -66,7 +74,8 @@ func configDecodeFile(data []byte, u configulator.Unmarshal, cfg *Config, sep st
 	}
 	return sh.applyTo(cfg, sep, set, file)
 }
-func (s *configShadow) applyTo(cfg *Config, sep string, set configulator.SetOrigin, file string) error {
+
+func (s *configShadow) applyTo(cfg *Config, _ string, set configulator.SetOrigin, file string) error {
 	if s.LogLevel != nil {
 		cfg.LogLevel = LogLevel(*s.LogLevel)
 		set("logLevel", configulator.LayerFile, file)
@@ -105,90 +114,75 @@ func (s *configShadow) applyTo(cfg *Config, sep string, set configulator.SetOrig
 	}
 	return nil
 }
+
 func configApplyEnv(cfg *Config, ec configulator.EnvContext, set configulator.SetOrigin) error {
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "logLevel"); true {
-		if v, ok := ec.Getenv(n); ok {
-			cfg.LogLevel = LogLevel(v)
-			set("logLevel", configulator.LayerEnv, n)
-		}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "logLevel"); ok {
+		cfg.LogLevel = LogLevel(v)
+		set("logLevel", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "http", "bind"); true {
-		if v, ok := ec.Getenv(n); ok {
-			cfg.HTTP.Bind = v
-			set("http.bind", configulator.LayerEnv, n)
-		}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "http", "bind"); ok {
+		cfg.HTTP.Bind = v
+		set("http.bind", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "http", "port"); true {
-		if v, ok := ec.Getenv(n); ok {
-			p, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				return &configulator.ParseError{
-					Err:    err,
-					Path:   "http.port",
-					Source: n,
-					Value:  v,
-				}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "http", "port"); ok {
+		p, err := strconv.ParseInt(v, 10, strconv.IntSize)
+		if err != nil {
+			return &configulator.ParseError{
+				Err:    err,
+				Path:   "http.port",
+				Source: n,
+				Value:  v,
 			}
-			cfg.HTTP.Port = int(p)
-			set("http.port", configulator.LayerEnv, n)
 		}
+		cfg.HTTP.Port = int(p)
+		set("http.port", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "rcon", "host"); true {
-		if v, ok := ec.Getenv(n); ok {
-			cfg.RCON.Host = v
-			set("rcon.host", configulator.LayerEnv, n)
-		}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "rcon", "host"); ok {
+		cfg.RCON.Host = v
+		set("rcon.host", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "rcon", "port"); true {
-		if v, ok := ec.Getenv(n); ok {
-			p, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				return &configulator.ParseError{
-					Err:    err,
-					Path:   "rcon.port",
-					Source: n,
-					Value:  v,
-				}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "rcon", "port"); ok {
+		p, err := strconv.ParseInt(v, 10, strconv.IntSize)
+		if err != nil {
+			return &configulator.ParseError{
+				Err:    err,
+				Path:   "rcon.port",
+				Source: n,
+				Value:  v,
 			}
-			cfg.RCON.Port = int(p)
-			set("rcon.port", configulator.LayerEnv, n)
 		}
+		cfg.RCON.Port = int(p)
+		set("rcon.port", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "rcon", "password"); true {
-		if v, ok := ec.Getenv(n); ok {
-			cfg.RCON.Password = v
-			set("rcon.password", configulator.LayerEnv, n)
-		}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "rcon", "password"); ok {
+		cfg.RCON.Password = v
+		set("rcon.password", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "rcon", "timeoutSeconds"); true {
-		if v, ok := ec.Getenv(n); ok {
-			p, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				return &configulator.ParseError{
-					Err:    err,
-					Path:   "rcon.timeoutSeconds",
-					Source: n,
-					Value:  v,
-				}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "rcon", "timeoutSeconds"); ok {
+		p, err := strconv.ParseInt(v, 10, strconv.IntSize)
+		if err != nil {
+			return &configulator.ParseError{
+				Err:    err,
+				Path:   "rcon.timeoutSeconds",
+				Source: n,
+				Value:  v,
 			}
-			cfg.RCON.TimeoutSeconds = int(p)
-			set("rcon.timeoutSeconds", configulator.LayerEnv, n)
 		}
+		cfg.RCON.TimeoutSeconds = int(p)
+		set("rcon.timeoutSeconds", configulator.LayerEnv, n)
 	}
-	if n := configulator.EnvName(ec.Opts.Prefix, ec.Opts.Separator, "rcon", "maxConcurrent"); true {
-		if v, ok := ec.Getenv(n); ok {
-			p, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				return &configulator.ParseError{
-					Err:    err,
-					Path:   "rcon.maxConcurrent",
-					Source: n,
-					Value:  v,
-				}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "rcon", "maxConcurrent"); ok {
+		p, err := strconv.ParseInt(v, 10, strconv.IntSize)
+		if err != nil {
+			return &configulator.ParseError{
+				Err:    err,
+				Path:   "rcon.maxConcurrent",
+				Source: n,
+				Value:  v,
 			}
-			cfg.RCON.MaxConcurrent = int(p)
-			set("rcon.maxConcurrent", configulator.LayerEnv, n)
 		}
+		cfg.RCON.MaxConcurrent = int(p)
+		set("rcon.maxConcurrent", configulator.LayerEnv, n)
 	}
 	return nil
 }
@@ -200,10 +194,26 @@ func ConfigPFlagHooks() cpflag.Hooks[Config] {
 		Register: configRegisterPFlags,
 	}
 }
+
 func configRegisterPFlags(fs *pflag.FlagSet, o *cpflag.Options) error {
-	names := []string{strings.Join([]string{"logLevel"}, o.Separator), strings.Join([]string{"http", "bind"}, o.Separator), strings.Join([]string{"http", "port"}, o.Separator), strings.Join([]string{"rcon", "host"}, o.Separator), strings.Join([]string{"rcon", "port"}, o.Separator), strings.Join([]string{"rcon", "password"}, o.Separator), strings.Join([]string{"rcon", "timeoutSeconds"}, o.Separator), strings.Join([]string{"rcon", "maxConcurrent"}, o.Separator)}
+	names := []string{
+		"logLevel",
+		"http" + o.Separator + "bind",
+		"http" + o.Separator + "port",
+		"rcon" + o.Separator + "host",
+		"rcon" + o.Separator + "port",
+		"rcon" + o.Separator + "password",
+		"rcon" + o.Separator + "timeoutSeconds",
+		"rcon" + o.Separator + "maxConcurrent",
+	}
 	for i, name := range names {
-		if fs.Lookup(name) != nil || slices.Contains(names[:i], name) {
+		if f := fs.Lookup(name); f != nil {
+			return &configulator.FlagConflictError{
+				Existing: f.Name,
+				Flag:     name,
+			}
+		}
+		if slices.Contains(names[:i], name) {
 			return &configulator.FlagConflictError{
 				Existing: name,
 				Flag:     name,
@@ -212,16 +222,17 @@ func configRegisterPFlags(fs *pflag.FlagSet, o *cpflag.Options) error {
 	}
 	fs.String(names[0], "info", "log verbosity: debug, info, warn, or error")
 	fs.String(names[1], "", "address to listen on; empty listens on all interfaces over both IPv4 and IPv6")
-	fs.Int(names[2], 8080, "port the web interface listens on")
+	fs.Var(impl.NewInt(8080), names[2], "port the web interface listens on")
 	fs.String(names[3], "127.0.0.1", "hostname or IP of the Source RCON server")
-	fs.Int(names[4], 27015, "TCP port of the Source RCON server")
+	fs.Var(impl.NewInt(27015), names[4], "TCP port of the Source RCON server")
 	fs.String(names[5], "", "RCON password (required)")
-	fs.Int(names[6], 5, "deadline in seconds covering a whole RCON exchange: connect, authenticate, command, response")
-	fs.Int(names[7], 4, "maximum RCON commands in flight at once; further requests get HTTP 503")
+	fs.Var(impl.NewInt(5), names[6], "deadline in seconds covering a whole RCON exchange: connect, authenticate, command, response")
+	fs.Var(impl.NewInt(4), names[7], "maximum RCON commands in flight at once; further requests get HTTP 503")
 	return nil
 }
-func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep string, set configulator.SetOrigin) error {
-	if n := strings.Join([]string{"logLevel"}, o.Separator); fs.Changed(n) {
+
+func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, _ string, set configulator.SetOrigin) error {
+	if n := "logLevel"; fs.Changed(n) {
 		v, err := fs.GetString(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -233,7 +244,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.LogLevel = LogLevel(v)
 		set("logLevel", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"http", "bind"}, o.Separator); fs.Changed(n) {
+	if n := "http" + o.Separator + "bind"; fs.Changed(n) {
 		v, err := fs.GetString(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -245,7 +256,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.HTTP.Bind = v
 		set("http.bind", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"http", "port"}, o.Separator); fs.Changed(n) {
+	if n := "http" + o.Separator + "port"; fs.Changed(n) {
 		v, err := fs.GetInt(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -257,7 +268,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.HTTP.Port = v
 		set("http.port", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"rcon", "host"}, o.Separator); fs.Changed(n) {
+	if n := "rcon" + o.Separator + "host"; fs.Changed(n) {
 		v, err := fs.GetString(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -269,7 +280,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.RCON.Host = v
 		set("rcon.host", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"rcon", "port"}, o.Separator); fs.Changed(n) {
+	if n := "rcon" + o.Separator + "port"; fs.Changed(n) {
 		v, err := fs.GetInt(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -281,7 +292,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.RCON.Port = v
 		set("rcon.port", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"rcon", "password"}, o.Separator); fs.Changed(n) {
+	if n := "rcon" + o.Separator + "password"; fs.Changed(n) {
 		v, err := fs.GetString(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -293,7 +304,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.RCON.Password = v
 		set("rcon.password", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"rcon", "timeoutSeconds"}, o.Separator); fs.Changed(n) {
+	if n := "rcon" + o.Separator + "timeoutSeconds"; fs.Changed(n) {
 		v, err := fs.GetInt(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -305,7 +316,7 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 		cfg.RCON.TimeoutSeconds = v
 		set("rcon.timeoutSeconds", configulator.LayerCLI, "--"+n)
 	}
-	if n := strings.Join([]string{"rcon", "maxConcurrent"}, o.Separator); fs.Changed(n) {
+	if n := "rcon" + o.Separator + "maxConcurrent"; fs.Changed(n) {
 		v, err := fs.GetInt(n)
 		if err != nil {
 			return &configulator.ParseError{
@@ -319,97 +330,112 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep st
 	}
 	return nil
 }
+
 func (s *configShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	tok, err := dec.ReadToken()
 	if err != nil {
 		return err
 	}
-	if tok.Kind() != '{' {
-		return fmt.Errorf("expected object, got %v", tok.Kind())
+	if tok.Kind() != jsontext.KindBeginObject {
+		return fmt.Errorf("expected an object, got %v", tok.Kind())
 	}
 	for {
 		tok, err := dec.ReadToken()
 		if err != nil {
 			return err
 		}
-		if tok.Kind() == '}' {
+		if tok.Kind() == jsontext.KindEndObject {
 			return nil
 		}
-		switch tok.String() {
+		switch key := tok.String(); key {
 		case "logLevel":
 			v, err := dec.ReadToken()
 			if err != nil {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '"':
+			case jsontext.KindNull:
+			case jsontext.KindString:
 				str := v.String()
 				s.LogLevel = &str
 			default:
-				return fmt.Errorf("logLevel: expected a string, got %v", v.Kind())
+				return configJSONError("logLevel", v, fmt.Errorf("expected a string, got %v", v.Kind()))
 			}
 		case "http":
-			if dec.PeekKind() == 'n' {
+			if dec.PeekKind() == jsontext.KindNull {
 				if _, err := dec.ReadToken(); err != nil {
 					return err
 				}
 			} else {
+				open, err := dec.ReadToken()
+				if err != nil {
+					return err
+				}
+				if open.Kind() != jsontext.KindBeginObject {
+					return configJSONError("http", open, fmt.Errorf("expected an object, got %v", open.Kind()))
+				}
 				var sub hTTPShadow
-				if err := sub.UnmarshalJSONFrom(dec); err != nil {
+				if err := sub.decodeJSON(dec, "http"); err != nil {
 					return err
 				}
 				s.HTTP = &sub
 			}
 		case "rcon":
-			if dec.PeekKind() == 'n' {
+			if dec.PeekKind() == jsontext.KindNull {
 				if _, err := dec.ReadToken(); err != nil {
 					return err
 				}
 			} else {
+				open, err := dec.ReadToken()
+				if err != nil {
+					return err
+				}
+				if open.Kind() != jsontext.KindBeginObject {
+					return configJSONError("rcon", open, fmt.Errorf("expected an object, got %v", open.Kind()))
+				}
 				var sub rCONShadow
-				if err := sub.UnmarshalJSONFrom(dec); err != nil {
+				if err := sub.decodeJSON(dec, "rcon"); err != nil {
 					return err
 				}
 				s.RCON = &sub
 			}
 		default:
-			return fmt.Errorf("unknown key %q", tok.String())
+			if reject, _ := json.GetOption(dec.Options(), json.RejectUnknownMembers); reject {
+				return &configulator.UnknownKeyError{Path: configQuoteKey(key)}
+			}
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-var _ v2.UnmarshalerFrom = (*configShadow)(nil)
+var _ json.UnmarshalerFrom = (*configShadow)(nil)
 
-func (s *hTTPShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
-	tok, err := dec.ReadToken()
-	if err != nil {
-		return err
-	}
-	if tok.Kind() != '{' {
-		return fmt.Errorf("expected object, got %v", tok.Kind())
-	}
+// decodeJSON decodes the members of an object whose opening brace has
+// been read. path is the object's dotted path.
+func (s *hTTPShadow) decodeJSON(dec *jsontext.Decoder, path string) error {
 	for {
 		tok, err := dec.ReadToken()
 		if err != nil {
 			return err
 		}
-		if tok.Kind() == '}' {
+		if tok.Kind() == jsontext.KindEndObject {
 			return nil
 		}
-		switch tok.String() {
+		switch key := tok.String(); key {
 		case "bind":
 			v, err := dec.ReadToken()
 			if err != nil {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '"':
+			case jsontext.KindNull:
+			case jsontext.KindString:
 				str := v.String()
 				s.Bind = &str
 			default:
-				return fmt.Errorf("bind: expected a string, got %v", v.Kind())
+				return configJSONError(path+".bind", v, fmt.Errorf("expected a string, got %v", v.Kind()))
 			}
 		case "port":
 			v, err := dec.ReadToken()
@@ -417,54 +443,55 @@ func (s *hTTPShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '0':
-				num, err := v.Int()
+			case jsontext.KindNull:
+			case jsontext.KindNumber:
+				raw, err := v.Int()
 				if err != nil {
-					return err
+					return configJSONError(path+".port", v, err)
 				}
-				val := int(num)
-				s.Port = &val
+				if raw < math.MinInt || raw > math.MaxInt {
+					return configJSONError(path+".port", v, fmt.Errorf("%d overflows int", raw))
+				}
+				num := int(raw)
+				s.Port = &num
 			default:
-				return fmt.Errorf("port: expected a number, got %v", v.Kind())
+				return configJSONError(path+".port", v, fmt.Errorf("expected a number, got %v", v.Kind()))
 			}
 		default:
-			return fmt.Errorf("unknown key %q", tok.String())
+			if reject, _ := json.GetOption(dec.Options(), json.RejectUnknownMembers); reject {
+				return &configulator.UnknownKeyError{Path: path + "." + configQuoteKey(key)}
+			}
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-var _ v2.UnmarshalerFrom = (*hTTPShadow)(nil)
-
-func (s *rCONShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
-	tok, err := dec.ReadToken()
-	if err != nil {
-		return err
-	}
-	if tok.Kind() != '{' {
-		return fmt.Errorf("expected object, got %v", tok.Kind())
-	}
+// decodeJSON decodes the members of an object whose opening brace has
+// been read. path is the object's dotted path.
+func (s *rCONShadow) decodeJSON(dec *jsontext.Decoder, path string) error {
 	for {
 		tok, err := dec.ReadToken()
 		if err != nil {
 			return err
 		}
-		if tok.Kind() == '}' {
+		if tok.Kind() == jsontext.KindEndObject {
 			return nil
 		}
-		switch tok.String() {
+		switch key := tok.String(); key {
 		case "host":
 			v, err := dec.ReadToken()
 			if err != nil {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '"':
+			case jsontext.KindNull:
+			case jsontext.KindString:
 				str := v.String()
 				s.Host = &str
 			default:
-				return fmt.Errorf("host: expected a string, got %v", v.Kind())
+				return configJSONError(path+".host", v, fmt.Errorf("expected a string, got %v", v.Kind()))
 			}
 		case "port":
 			v, err := dec.ReadToken()
@@ -472,29 +499,41 @@ func (s *rCONShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '0':
-				num, err := v.Int()
+			case jsontext.KindNull:
+			case jsontext.KindNumber:
+				raw, err := v.Int()
+				if err != nil {
+					return configJSONError(path+".port", v, err)
+				}
+				if raw < math.MinInt || raw > math.MaxInt {
+					return configJSONError(path+".port", v, fmt.Errorf("%d overflows int", raw))
+				}
+				num := int(raw)
+				s.Port = &num
+			default:
+				return configJSONError(path+".port", v, fmt.Errorf("expected a number, got %v", v.Kind()))
+			}
+		case "password":
+			if err := func() error {
+				v, err := dec.ReadToken()
 				if err != nil {
 					return err
 				}
-				val := int(num)
-				s.Port = &val
-			default:
-				return fmt.Errorf("port: expected a number, got %v", v.Kind())
-			}
-		case "password":
-			v, err := dec.ReadToken()
-			if err != nil {
-				return err
-			}
-			switch v.Kind() {
-			case 'n':
-			case '"':
-				str := v.String()
-				s.Password = &str
-			default:
-				return fmt.Errorf("password: expected a string, got %v", v.Kind())
+				switch v.Kind() {
+				case jsontext.KindNull:
+				case jsontext.KindString:
+					str := v.String()
+					s.Password = &str
+				default:
+					return configJSONError(path+".password", v, fmt.Errorf("expected a string, got %v", v.Kind()))
+				}
+				return nil
+			}(); err != nil {
+				return &configulator.ParseError{
+					Err:   errors.New("invalid value"),
+					Path:  path + ".password",
+					Value: "(redacted)",
+				}
 			}
 		case "timeoutSeconds":
 			v, err := dec.ReadToken()
@@ -502,16 +541,19 @@ func (s *rCONShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '0':
-				num, err := v.Int()
+			case jsontext.KindNull:
+			case jsontext.KindNumber:
+				raw, err := v.Int()
 				if err != nil {
-					return err
+					return configJSONError(path+".timeoutSeconds", v, err)
 				}
-				val := int(num)
-				s.TimeoutSeconds = &val
+				if raw < math.MinInt || raw > math.MaxInt {
+					return configJSONError(path+".timeoutSeconds", v, fmt.Errorf("%d overflows int", raw))
+				}
+				num := int(raw)
+				s.TimeoutSeconds = &num
 			default:
-				return fmt.Errorf("timeoutSeconds: expected a number, got %v", v.Kind())
+				return configJSONError(path+".timeoutSeconds", v, fmt.Errorf("expected a number, got %v", v.Kind()))
 			}
 		case "maxConcurrent":
 			v, err := dec.ReadToken()
@@ -519,37 +561,59 @@ func (s *rCONShadow) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 				return err
 			}
 			switch v.Kind() {
-			case 'n':
-			case '0':
-				num, err := v.Int()
+			case jsontext.KindNull:
+			case jsontext.KindNumber:
+				raw, err := v.Int()
 				if err != nil {
-					return err
+					return configJSONError(path+".maxConcurrent", v, err)
 				}
-				val := int(num)
-				s.MaxConcurrent = &val
+				if raw < math.MinInt || raw > math.MaxInt {
+					return configJSONError(path+".maxConcurrent", v, fmt.Errorf("%d overflows int", raw))
+				}
+				num := int(raw)
+				s.MaxConcurrent = &num
 			default:
-				return fmt.Errorf("maxConcurrent: expected a number, got %v", v.Kind())
+				return configJSONError(path+".maxConcurrent", v, fmt.Errorf("expected a number, got %v", v.Kind()))
 			}
 		default:
-			return fmt.Errorf("unknown key %q", tok.String())
+			if reject, _ := json.GetOption(dec.Options(), json.RejectUnknownMembers); reject {
+				return &configulator.UnknownKeyError{Path: path + "." + configQuoteKey(key)}
+			}
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-var _ v2.UnmarshalerFrom = (*rCONShadow)(nil)
+// configJSONError returns a ParseError for the JSON token v at path.
+func configJSONError(path string, v jsontext.Token, err error) error {
+	return &configulator.ParseError{
+		Err:   err,
+		Path:  path,
+		Value: v.String(),
+	}
+}
 
 // PrintConfig renders every field as "path = value" lines, redacting
 // fields tagged secret:"true". The origin Report holds no values,
 // so this is the only place redaction happens.
-func (c *Config) PrintConfig() string {
+func (c Config) PrintConfig() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("logLevel = %v\n", c.LogLevel))
-	b.WriteString(fmt.Sprintf("http.bind = %v\n", c.HTTP.Bind))
-	b.WriteString(fmt.Sprintf("http.port = %v\n", c.HTTP.Port))
-	b.WriteString(fmt.Sprintf("rcon.host = %v\n", c.RCON.Host))
-	b.WriteString(fmt.Sprintf("rcon.port = %v\n", c.RCON.Port))
+	fmt.Fprintf(&b, "logLevel = %v\n", c.LogLevel)
+	fmt.Fprintf(&b, "http.bind = %v\n", c.HTTP.Bind)
+	fmt.Fprintf(&b, "http.port = %v\n", c.HTTP.Port)
+	fmt.Fprintf(&b, "rcon.host = %v\n", c.RCON.Host)
+	fmt.Fprintf(&b, "rcon.port = %v\n", c.RCON.Port)
 	b.WriteString("rcon.password = (redacted)\n")
-	b.WriteString(fmt.Sprintf("rcon.timeoutSeconds = %v\n", c.RCON.TimeoutSeconds))
-	b.WriteString(fmt.Sprintf("rcon.maxConcurrent = %v\n", c.RCON.MaxConcurrent))
+	fmt.Fprintf(&b, "rcon.timeoutSeconds = %v\n", c.RCON.TimeoutSeconds)
+	fmt.Fprintf(&b, "rcon.maxConcurrent = %v\n", c.RCON.MaxConcurrent)
 	return b.String()
+}
+
+func configQuoteKey(k string) string {
+	if strings.ContainsAny(k, ".[") {
+		return "\"" + strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(k) + "\""
+	}
+	return k
 }
