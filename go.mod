@@ -1,6 +1,6 @@
 module github.com/SRS-Hosting/rcon-web
 
-go 1.27
+go 1.27.1
 
 require (
 	github.com/SRS-Hosting/rcon v0.0.5
