@@ -1,0 +1,21 @@
+# Sample configuration for Config.
+# log verbosity: debug, info, warn, or error
+logLevel: "info"
+# web interface settings
+http:
+  # address to listen on; empty listens on all interfaces over both IPv4 and IPv6
+  # bind: ""
+  # port the web interface listens on
+  port: 8080
+# Source RCON server settings
+rcon:
+  # hostname or IP of the Source RCON server
+  host: "127.0.0.1"
+  # TCP port of the Source RCON server
+  port: 27015
+  # RCON password (required)
+  # password: "(secret)"
+  # deadline in seconds covering a whole RCON exchange: connect, authenticate, command, response
+  timeoutSeconds: 5
+  # maximum RCON commands in flight at once; further requests get HTTP 503
+  maxConcurrent: 4
