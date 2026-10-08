@@ -10,103 +10,29 @@ release:
     owner: SRS-Hosting
     name: rcon-web
 
-dockers:
-  - image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:latest-amd64"
-    use: buildx
-    goarch: amd64
-    build_flag_templates:
+dockers_v2:
+  - images:
+      - "ghcr.io/srs-hosting/rcon-web"
+    tags:
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+      - linux/arm/v6
+      - linux/arm/v7
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.licenses": MIT
+      "org.opencontainers.image.url": "https://github.com/SRS-Hosting/{{ .ProjectName }}"
+      "org.opencontainers.image.source": "https://github.com/SRS-Hosting/{{ .ProjectName }}"
+    flags:
       - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - "--platform=linux/amd64"
-  - image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv7"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv7"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv7"
-      - "ghcr.io/srs-hosting/rcon-web:latest-armv7"
-    use: buildx
-    goarch: arm
-    goarm: "7"
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - "--platform=linux/arm/v7"
-  - image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:latest-armv6"
-    use: buildx
-    goarch: arm
-    goarm: "6"
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - "--platform=linux/arm/v6"
-  - image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:latest-arm64"
-    use: buildx
-    goarch: arm64
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - --label=org.opencontainers.image.licenses=MIT
-      - --label=org.opencontainers.image.url=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/SRS-Hosting/{{ .ProjectName }}
-      - "--platform=linux/arm64"
-
-docker_manifests:
-  - name_template: "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}"
-    image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:{{ .Tag }}-armv7"
-  - name_template: "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}"
-    image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}-armv7"
-  - name_template: "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}"
-    image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:v{{ .Major }}.{{ .Minor }}-armv7"
-  - name_template: "ghcr.io/srs-hosting/rcon-web:latest"
-    image_templates:
-      - "ghcr.io/srs-hosting/rcon-web:latest-amd64"
-      - "ghcr.io/srs-hosting/rcon-web:latest-arm64"
-      - "ghcr.io/srs-hosting/rcon-web:latest-armv6"
-      - "ghcr.io/srs-hosting/rcon-web:latest-armv7"
 
 builds:
   - main: .

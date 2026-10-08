@@ -2,5 +2,6 @@ FROM scratch
 
 USER 65535:65534
 
-COPY rcon-web /
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/rcon-web /
 ENTRYPOINT ["/rcon-web"]
