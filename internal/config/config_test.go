@@ -26,9 +26,7 @@ func TestValidateAcceptsValid(t *testing.T) {
 	}
 }
 
-// TestValidateRangeChecks covers the values a YAML file can carry that a narrower
-// field type would silently wrap: 70000 truncating to 4464 and -1 to 65535 were
-// both real, and neither is visible to a != 0 check.
+// TestValidateRangeChecks covers the out-of-range values Validate must reject.
 func TestValidateRangeChecks(t *testing.T) {
 	tests := []struct {
 		name  string

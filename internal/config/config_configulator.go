@@ -11,6 +11,7 @@ import (
 	configulator "github.com/USA-RedDragon/configulator/v2"
 	cpflag "github.com/USA-RedDragon/configulator/v2/flags/pflag"
 	"github.com/spf13/pflag"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -40,7 +41,7 @@ func ConfigSchema() *configulator.Schema[Config] {
 		DecodeFile:    configDecodeFile,
 	}
 }
-func configApplyDefaults(cfg *Config, set configulator.SetOrigin) error {
+func configApplyDefaults(cfg *Config, sep string, set configulator.SetOrigin) error {
 	cfg.LogLevel = LogLevel("info")
 	set("logLevel", configulator.LayerDefault, "default tag")
 	cfg.HTTP.Port = 8080
@@ -55,7 +56,7 @@ func configApplyDefaults(cfg *Config, set configulator.SetOrigin) error {
 	set("rcon.maxConcurrent", configulator.LayerDefault, "default tag")
 	return nil
 }
-func configDecodeFile(data []byte, u configulator.Unmarshal, cfg *Config, set configulator.SetOrigin, file string) error {
+func configDecodeFile(data []byte, u configulator.Unmarshal, cfg *Config, sep string, set configulator.SetOrigin, file string) error {
 	var sh configShadow
 	if err := u(data, &sh); err != nil {
 		return &configulator.DecodeError{
@@ -63,9 +64,9 @@ func configDecodeFile(data []byte, u configulator.Unmarshal, cfg *Config, set co
 			Path: file,
 		}
 	}
-	return sh.applyTo(cfg, set, file)
+	return sh.applyTo(cfg, sep, set, file)
 }
-func (s *configShadow) applyTo(cfg *Config, set configulator.SetOrigin, file string) error {
+func (s *configShadow) applyTo(cfg *Config, sep string, set configulator.SetOrigin, file string) error {
 	if s.LogLevel != nil {
 		cfg.LogLevel = LogLevel(*s.LogLevel)
 		set("logLevel", configulator.LayerFile, file)
@@ -200,22 +201,26 @@ func ConfigPFlagHooks() cpflag.Hooks[Config] {
 	}
 }
 func configRegisterPFlags(fs *pflag.FlagSet, o *cpflag.Options) error {
-	for _, name := range []string{strings.Join([]string{"logLevel"}, o.Separator), strings.Join([]string{"http", "bind"}, o.Separator), strings.Join([]string{"http", "port"}, o.Separator), strings.Join([]string{"rcon", "host"}, o.Separator), strings.Join([]string{"rcon", "port"}, o.Separator), strings.Join([]string{"rcon", "password"}, o.Separator), strings.Join([]string{"rcon", "timeoutSeconds"}, o.Separator), strings.Join([]string{"rcon", "maxConcurrent"}, o.Separator)} {
-		if fs.Lookup(name) != nil {
-			return fmt.Errorf("flag --%s already registered on this FlagSet", name)
+	names := []string{strings.Join([]string{"logLevel"}, o.Separator), strings.Join([]string{"http", "bind"}, o.Separator), strings.Join([]string{"http", "port"}, o.Separator), strings.Join([]string{"rcon", "host"}, o.Separator), strings.Join([]string{"rcon", "port"}, o.Separator), strings.Join([]string{"rcon", "password"}, o.Separator), strings.Join([]string{"rcon", "timeoutSeconds"}, o.Separator), strings.Join([]string{"rcon", "maxConcurrent"}, o.Separator)}
+	for i, name := range names {
+		if fs.Lookup(name) != nil || slices.Contains(names[:i], name) {
+			return &configulator.FlagConflictError{
+				Existing: name,
+				Flag:     name,
+			}
 		}
 	}
-	fs.String(strings.Join([]string{"logLevel"}, o.Separator), "info", "log verbosity: debug, info, warn, or error")
-	fs.String(strings.Join([]string{"http", "bind"}, o.Separator), "", "address to listen on; empty listens on all interfaces over both IPv4 and IPv6")
-	fs.Int(strings.Join([]string{"http", "port"}, o.Separator), 8080, "port the web interface listens on")
-	fs.String(strings.Join([]string{"rcon", "host"}, o.Separator), "127.0.0.1", "hostname or IP of the Source RCON server")
-	fs.Int(strings.Join([]string{"rcon", "port"}, o.Separator), 27015, "TCP port of the Source RCON server")
-	fs.String(strings.Join([]string{"rcon", "password"}, o.Separator), "", "RCON password (required)")
-	fs.Int(strings.Join([]string{"rcon", "timeoutSeconds"}, o.Separator), 5, "deadline in seconds covering a whole RCON exchange: connect, authenticate, command, response")
-	fs.Int(strings.Join([]string{"rcon", "maxConcurrent"}, o.Separator), 4, "maximum RCON commands in flight at once; further requests get HTTP 503")
+	fs.String(names[0], "info", "log verbosity: debug, info, warn, or error")
+	fs.String(names[1], "", "address to listen on; empty listens on all interfaces over both IPv4 and IPv6")
+	fs.Int(names[2], 8080, "port the web interface listens on")
+	fs.String(names[3], "127.0.0.1", "hostname or IP of the Source RCON server")
+	fs.Int(names[4], 27015, "TCP port of the Source RCON server")
+	fs.String(names[5], "", "RCON password (required)")
+	fs.Int(names[6], 5, "deadline in seconds covering a whole RCON exchange: connect, authenticate, command, response")
+	fs.Int(names[7], 4, "maximum RCON commands in flight at once; further requests get HTTP 503")
 	return nil
 }
-func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, set configulator.SetOrigin) error {
+func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, sep string, set configulator.SetOrigin) error {
 	if n := strings.Join([]string{"logLevel"}, o.Separator); fs.Changed(n) {
 		v, err := fs.GetString(n)
 		if err != nil {
