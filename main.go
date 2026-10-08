@@ -6,7 +6,7 @@ import (
 
 	"github.com/SRS-Hosting/rcon-web/internal/cmd"
 	"github.com/SRS-Hosting/rcon-web/internal/config"
-	"github.com/USA-RedDragon/configulator"
+	"github.com/USA-RedDragon/configulator/v2"
 )
 
 // https://goreleaser.com/cookbooks/using-main.version/

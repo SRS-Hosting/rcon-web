@@ -10,7 +10,7 @@ import (
 
 	"github.com/SRS-Hosting/rcon-web/internal/config"
 	"github.com/SRS-Hosting/rcon-web/internal/server"
-	"github.com/USA-RedDragon/configulator"
+	"github.com/USA-RedDragon/configulator/v2"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 )
