@@ -1,4 +1,4 @@
-internal/cmd/root.go	42	0
-internal/config/config.go	23	23
-internal/server/server.go	171	158
-main.go	21	0
+internal/cmd/root.go	26	0
+internal/config/config.go	21	21
+internal/server/server.go	113	100
+main.go	6	0
